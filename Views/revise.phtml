@@ -1,0 +1,647 @@
+<?php
+/**
+ * =============================================================================
+ * Question Session with markAndSave Endpoint
+ * =============================================================================
+ * This script builds a question session page that:
+ *  - Retrieves questions from the database (filtered by topic),
+ *  - Displays each question using various formats (multiple choice, text,
+ *    fill-in-the-blanks, etc.),
+ *  - Collects the user's answer,
+ *  - Submits the answer to markAndSave.php for marking and saving the result,
+ *  - Displays feedback from the server response,
+ *  - And then moves on to the next question.
+ *
+ * Required external files:
+ *  - Views/Template/header.phtml         (for the header)
+ *  - Models/QuestionDataSet.php          (data model for questions)
+ *  - Models/RevisionInfoDataSet.php      (data model for revision info)
+ *  - UserMarkingSystem/markingSystem.php (contains the ExtractiveQA class)
+ *
+ * Ensure that your SQLite database (QuestionAnswer.sqlite) contains a table
+ * "questions" with a "topic" column and that the revisionInfo table is set up
+ * with an auto-increment primary key.
+ * -----------------------------------------------------------------------------
+ */
+
+// -----------------------------------------------------------------------------
+// INCLUDE HEADER AND REQUIRED FILES
+// -----------------------------------------------------------------------------
+require_once('Views/Template/header.phtml');
+require_once('Models/QuestionDataSet.php');
+require_once('Models/RevisionInfoDataSet.php');
+require_once('UserMarkingSystem/markingSystem.php');
+
+// -----------------------------------------------------------------------------
+// DATABASE: Retrieve Questions for the Session
+// -----------------------------------------------------------------------------
+$topic = "Networking";
+try {
+    $db = new PDO('sqlite:QuestionAnswer.sqlite');
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $stmt = $db->prepare('SELECT * FROM questions WHERE topic = :topic ORDER BY id');
+    $stmt->bindParam(':topic', $topic, PDO::PARAM_STR);
+    $stmt->execute();
+    $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Database error: " . $e->getMessage());
+}
+$questionsJSON = json_encode($questions);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Question Session</title>
+    <!-- Custom CSS for various question formats and dark mode -->
+    <style>
+        /* Base Styles */
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        /* Card and Button Styles */
+        .card {
+            background-color: #f8f9fa;
+            color: inherit;
+        }
+
+        .btn {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        /* Multiple Choice Styles */
+        .modern-choice-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 20px 0;
+        }
+        .modern-choice-option {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .modern-choice-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .modern-choice-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+        .modern-choice-option.selected {
+            border-color: #0d6efd;
+            background: #e7f1ff;
+        }
+        .modern-choice-label {
+            display: block;
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        /* Fill-in-the-Blanks Styles */
+        .fill-blank-sentence {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        .dropzone {
+            display: inline-block;
+            min-width: 80px;
+            border-bottom: 2px dashed #aaa;
+            margin: 0 4px;
+            padding: 2px 4px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+        .dropzone.drag-over {
+            background-color: #e9ecef;
+            border-color: #0d6efd;
+        }
+        .word-pool {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        .draggable-word {
+            display: inline-block;
+            margin: 4px;
+            padding: 4px 8px;
+            border: 1px solid #0d6efd;
+            border-radius: 4px;
+            background-color: #fff;
+            cursor: grab;
+        }
+        .draggable-word.dragging {
+            opacity: 0.5;
+        }
+        .word-pool.drag-over {
+            background-color: #e9ecef;
+        }
+        /* Controls Container */
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <!-- Session Controls -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <button id="sessionButton" class="btn btn-success">
+            <i class="bi bi-play-circle me-2"></i>Begin Session
+        </button>
+        <span id="stopwatch" class="text-muted fs-5">00:00:00</span>
+    </div>
+    <!-- Question Card -->
+    <div class="card p-4 mb-4 shadow-sm">
+        <!-- Note: The form's action is no longer used as submission is done via JavaScript -->
+        <form id="answerForm">
+            <h3 id="question" class="card-title text-center mb-4">
+                Start the session then click next to begin revising.
+            </h3>
+            <div id="questionContent"></div>
+            <!-- Control Buttons -->
+            <div class="controls">
+                <!-- The Submit button is shown conditionally based on question format -->
+                <button type="submit" id="submitBtn" class="btn btn-primary" name="submit" style="display: none;">
+                    <i class="bi bi-check-circle me-2"></i>Submit
+                </button>
+                <button type="button" id="next-btn" class="btn btn-outline-primary">
+                    Next <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JAVASCRIPT SECTION -->
+<script>
+    /***** GLOBAL VARIABLES *****/
+    let timer, startTime;
+    let running = false;
+    let questionStartTime; // Tracks when each question is displayed.
+    const questions = <?php echo $questionsJSON; ?>;
+    let currentQuestionIndex = -1;
+
+    /***** COOKIE HELPER FUNCTION *****/
+    function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+        document.cookie = `${cname}=${encodeURIComponent(cvalue)};expires=${d.toUTCString()};path=/`;
+    }
+
+    /***** TIMER FUNCTIONS *****/
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    function startStopwatch() {
+        startTime = Date.now();
+        timer = setInterval(() => {
+            document.getElementById('stopwatch').textContent = formatTime(Date.now() - startTime);
+        }, 1000);
+        running = true;
+    }
+    function stopStopwatch() {
+        clearInterval(timer);
+        running = false;
+        return Math.floor((Date.now() - startTime) / 1000);
+    }
+
+    /***** QUESTION DISPLAY FUNCTIONS *****/
+// Displays the question text and selects a random format for demonstration.
+    function displayQuestion(question) {
+        // Record the time when this question is displayed.
+        // Make sure the next button is visible when displaying a question
+        document.getElementById('next-btn').style.display = 'inline-block';
+        questionStartTime = Date.now();
+
+        // Set the question text in the page header.
+        document.getElementById('question').textContent = question.question;
+        const contentDiv = document.getElementById('questionContent');
+        contentDiv.innerHTML = '';
+
+        // With a 15% chance, choose format 2; otherwise randomly choose between formats 3 and 4.
+        if (Math.random() < 0.15) {
+            question.format = 2;
+        } else {
+            // Choose randomly between formats 3 and 4.
+            question.format = [3, 4][Math.floor(Math.random() * 2)];
+        }
+
+
+        // Show the Submit button only for text answer (format 2) and fill-in-the-blanks (format 4).
+        document.getElementById('submitBtn').style.display =
+            (question.format === 2 || question.format === 3 || question.format === 4) ? 'inline-block' : 'none';
+
+        // Display the content based on the question format.
+        switch (question.format) {
+            case 1:
+                displayMultipleChoice(question, contentDiv);
+                break;
+            case 2:
+                displayTextAnswer(contentDiv);
+                break;
+            case 3:
+                displayAnswer(question, contentDiv);
+                break;
+            case 4:
+                displayFillInBlanks(question, contentDiv);
+                break;
+            default:
+                contentDiv.innerHTML = '<div class="alert alert-warning">Unsupported question format</div>';
+        }
+        window.scrollTo({ top: document.getElementById('question').offsetTop - 20, behavior: 'smooth' });
+    }
+
+    // Multiple Choice display (Format 1)
+    function displayMultipleChoice(question, contentDiv) {
+        const choices = JSON.parse(question.choices);
+        const container = document.createElement('div');
+        container.className = 'modern-choice-container';
+        choices.forEach((choice, index) => {
+            const option = document.createElement('div');
+            option.className = 'modern-choice-option';
+            option.innerHTML = `
+            <input type="radio" name="userAnswer" id="choice${index}" value="${choice}">
+            <label class="modern-choice-label" for="choice${index}">
+                <span class="choice-letter">${String.fromCharCode(65 + index)}.</span> ${choice}
+            </label>
+        `;
+            option.addEventListener('click', function() {
+                // Deselect all options and select the clicked one.
+                document.querySelectorAll('.modern-choice-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                this.querySelector('input[type="radio"]').checked = true;
+            });
+            container.appendChild(option);
+        });
+        contentDiv.appendChild(container);
+    }
+
+    // Text Answer display (Format 2)
+    function displayTextAnswer(contentDiv) {
+        contentDiv.innerHTML = `
+        <div class="form-group mb-4">
+            <textarea class="form-control" id="userAnswer" name="userAnswer" rows="4" placeholder="Type your answer here..." required></textarea>
+            <div class="form-text text-muted mt-2">
+                <i class="bi bi-info-circle"></i> Provide a detailed explanation in your answer.
+            </div>
+        </div>
+    `;
+    }
+
+    // Generic Answer display (Format 3)
+    function displayAnswer(question, contentDiv) {
+        contentDiv.innerHTML = `<div class="alert alert-light">${question.answer}</div>`;
+    }
+
+    // Fill-in-the-Blanks display (Format 4)
+    function displayFillInBlanks(question, contentDiv) {
+        const fullAnswer = question.answer;
+        const answerWords = fullAnswer.split(' ');
+        const numGaps = Math.max(1, Math.floor(answerWords.length * 0.3));
+        const indices = answerWords.map((_, i) => i);
+        indices.sort(() => Math.random() - 0.5);
+        const gapIndices = indices.slice(0, numGaps).sort((a, b) => a - b);
+
+        // Create a container for the sentence with blanks.
+        const sentenceContainer = document.createElement('div');
+        sentenceContainer.className = 'fill-blank-sentence';
+        const missingWords = [];
+
+        // For each word in the sentence, decide whether to show it or replace with a dropzone.
+        answerWords.forEach((word, idx) => {
+            if (gapIndices.includes(idx)) {
+                missingWords.push(word);
+                const dropzone = document.createElement('span');
+                dropzone.className = 'dropzone';
+                dropzone.dataset.correct = word; // Store the correct word.
+                dropzone.dataset.wordIndex = idx;
+                dropzone.textContent = ''; // Initially empty.
+                // Clicking a dropzone clears its content and makes the original word visible again.
+                dropzone.addEventListener('click', function() {
+                    if (this.textContent.trim() !== '') {
+                        document.querySelectorAll('.draggable-word').forEach(wordEl => {
+                            if (wordEl.textContent === this.textContent && wordEl.style.visibility === 'hidden') {
+                                wordEl.style.visibility = 'visible';
+                            }
+                        });
+                        this.textContent = '';
+                    }
+                });
+                sentenceContainer.appendChild(dropzone);
+                sentenceContainer.appendChild(document.createTextNode(' '));
+            } else {
+                const span = document.createElement('span');
+                span.textContent = word + ' ';
+                sentenceContainer.appendChild(span);
+            }
+        });
+        contentDiv.appendChild(sentenceContainer);
+
+        // Create a word pool of missing words (shuffled).
+        const wordPool = document.createElement('div');
+        wordPool.className = 'word-pool';
+        wordPool.innerHTML = '<h5>Missing Words:</h5>';
+        missingWords.sort(() => Math.random() - 0.5).forEach(wordText => {
+            const wordDiv = document.createElement('div');
+            wordDiv.className = 'draggable-word';
+            wordDiv.textContent = wordText;
+            wordPool.appendChild(wordDiv);
+        });
+        contentDiv.appendChild(wordPool);
+
+        // Initialize drag-and-drop for fill-in-the-blanks.
+        initializeFillInDragAndDrop();
+    }
+
+    /***** FEEDBACK DISPLAY FUNCTION *****/
+    function displayFeedback(data) {
+        let msg = (data.userAnswer || "No answer provided") + "\n" +
+            (data.feedback || "") +
+            (data.correctAnswer ? ("\nCorrect Answer: " + data.correctAnswer) : "");
+        alert(msg);
+    }
+
+    /***** EVENT LISTENERS *****/
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initially disable the Next button.
+        document.getElementById('next-btn').disabled = true;
+
+        // Session Start/Stop Handler.
+        document.getElementById('sessionButton').addEventListener('click', function() {
+            if (!running) {
+                this.innerHTML = '<i class="bi bi-stop-circle me-2"></i>End Session';
+                this.classList.remove('btn-success');
+                this.classList.add('btn-danger');
+                startStopwatch();
+                document.getElementById('next-btn').disabled = false;
+            } else {
+                this.innerHTML = '<i class="bi bi-play-circle me-2"></i>Begin Session';
+                this.classList.remove('btn-danger');
+                this.classList.add('btn-success');
+                stopStopwatch();
+                document.getElementById('next-btn').disabled = true;
+            }
+        });
+
+        // Next Question Handler.
+        document.getElementById('next-btn').addEventListener('click', function() {
+            // For text answer (format 2), store answer in a cookie if desired.
+            if (currentQuestionIndex >= 0 && questions[currentQuestionIndex].format === 2) {
+                const answerText = document.getElementById('userAnswer').value.trim();
+                const dataToStore = {
+                    id: questions[currentQuestionIndex].id,
+                    answer: answerText,
+                    format: questions[currentQuestionIndex].format
+                };
+                setCookie('answer_' + questions[currentQuestionIndex].id, JSON.stringify(dataToStore), 1);
+            }
+            // Move to the next question.
+            // Replace this part in the Next Question Handler
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion(questions[currentQuestionIndex]);
+            } else {
+                document.getElementById('question').textContent = 'No more questions available';
+                this.disabled = true;
+                stopStopwatch();
+                document.getElementById('sessionButton').click();
+            }
+
+// With this updated code
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion(questions[currentQuestionIndex]);
+            } else {
+                // Display session completion message
+                document.getElementById('question').textContent = 'Revision Session Complete!';
+                document.getElementById('questionContent').innerHTML = `
+        <div class="alert alert-success text-center">
+            <p>You have completed all the questions in this revision session.</p>
+            <div class="d-flex justify-content-center gap-3 mt-3">
+                <button id="restartBtn" class="btn btn-primary">
+                    <i class="bi bi-arrow-repeat me-2"></i>Restart Revision
+                </button>
+                <a href="test.php" class="btn btn-success">
+                    <i class="bi bi-pencil-square me-2"></i>Take Test
+                </a>
+            </div>
+        </div>
+    `;
+
+                // Add event listener to the restart button
+                document.getElementById('restartBtn').addEventListener('click', function() {
+                    // Reset the question index and restart
+                    currentQuestionIndex = 0;
+
+                    // Restart the session if it's not already running
+                    if (!running) {
+                        document.getElementById('sessionButton').click();
+                    }
+
+                    // Display the first question
+                    displayQuestion(questions[currentQuestionIndex]);
+
+                    // Enable the next button
+                    document.getElementById('next-btn').disabled = false;
+                });
+
+                // Hide the next button since we now have dedicated action buttons
+                document.getElementById('next-btn').style.display = 'none';
+
+                // Stop the timer
+                if (running) {
+                    stopStopwatch();
+                    document.getElementById('sessionButton').click();
+                }
+            }
+        });
+
+        // Answer Submission Handler using markAndSave endpoint.
+        document.getElementById('answerForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            if (!running) {
+                alert('You must start the session first');
+                return;
+            }
+            const currentQuestion = questions[currentQuestionIndex];
+            let userAnswer = '';
+
+            // Determine userAnswer based on the question format.
+            switch (currentQuestion.format) {
+                case 1: // Multiple choice.
+                    const selectedOption = document.querySelector('input[name="userAnswer"]:checked');
+                    if (!selectedOption) {
+                        alert('Please select an answer');
+                        return;
+                    }
+                    userAnswer = selectedOption.value;
+                    break;
+                case 2: // Text answer.
+                    userAnswer = document.getElementById('userAnswer').value.trim();
+                    if (!userAnswer) {
+                        alert('Please enter your answer');
+                        return;
+                    }
+                    break;
+                case 3: // Matching format.
+                    const matches = [];
+                    document.querySelectorAll('.matching-pair').forEach(pair => {
+                        matches.push({
+                            term: pair.querySelector('.term').textContent,
+                            definition: pair.querySelector('.definition').textContent
+                        });
+                    });
+                    userAnswer = JSON.stringify(matches);
+                    break;
+                case 4: // Fill-in-the-blanks (Drag-and-Drop)
+                    let reconstructedSentence = "";
+                    document.querySelectorAll('.fill-blank-sentence span, .fill-blank-sentence .dropzone').forEach(node => {
+                        if (node.classList.contains('dropzone')) {
+                            reconstructedSentence += (node.textContent.trim() || '___') + " ";
+                        } else {
+                            reconstructedSentence += node.textContent + " ";
+                        }
+                    });
+                    userAnswer = reconstructedSentence.trim();
+                    break;
+                default:
+                    alert('Unsupported question format');
+                    return;
+            }
+
+            // Calculate time spent on this question (in seconds)
+            const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+
+            // Build payload for markAndSave.php.
+            const payload = new URLSearchParams();
+            payload.append("questionID", currentQuestion.id);
+            payload.append("question", currentQuestion.question);
+            payload.append("userAnswer", userAnswer);
+            payload.append("context", currentQuestion.context || "Default context");
+            payload.append("correctAnswer", currentQuestion.answer);
+            payload.append("format", currentQuestion.format);
+            payload.append("timeSpent", timeSpent.toString());
+            console.log(timeSpent);
+            // Send the data to markAndSave.php via POST.
+            fetch('markAndSave.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: payload.toString()
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error(text); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    let marks = 0;
+                    if (data.similarityScore >= 80) marks = 2;
+                    else if (data.similarityScore >= 50) marks = 1;
+                    const feedbackMessage = "You got " + marks + " mark(s).\n" +
+                        (data.feedback || "") +
+                        "\nCorrect Answer: " + (data.correctAnswer || "Not available");
+                    alert(feedbackMessage);
+                    setCookie('mark_' + currentQuestion.id, JSON.stringify({
+                        questionId: currentQuestion.id,
+                        format: currentQuestion.format,
+                        marks: marks
+                    }), 1);
+                    if (currentQuestionIndex === questions.length - 1) {
+                        document.getElementById('next-btn').disabled = true;
+                    } else {
+                        document.getElementById('next-btn').click();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('There was an error submitting your answer:\n' + error.message);
+                });
+        });
+    });
+
+    /***** FILL-IN-THE-BLANKS DRAG-AND-DROP INITIALIZATION *****/
+    function initializeFillInDragAndDrop() {
+        const draggableWords = document.querySelectorAll('.draggable-word');
+        const dropzones = document.querySelectorAll('.dropzone');
+        let draggedWord = null;
+        draggableWords.forEach(word => {
+            word.setAttribute('draggable', 'true');
+            word.addEventListener('dragstart', function(e) {
+                draggedWord = this;
+                e.dataTransfer.setData('text/plain', this.textContent);
+                e.dataTransfer.effectAllowed = 'move';
+                this.classList.add('dragging');
+            });
+            word.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                draggedWord = null;
+            });
+        });
+        dropzones.forEach(zone => {
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            zone.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (draggedWord && this.textContent.trim() === '') {
+                    this.textContent = draggedWord.textContent;
+                    draggedWord.style.visibility = 'hidden';
+                }
+            });
+        });
+        const wordPool = document.querySelector('.word-pool');
+        if (wordPool) {
+            wordPool.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            wordPool.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            wordPool.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (draggedWord) {
+                    document.querySelectorAll('.dropzone').forEach(zone => {
+                        if (zone.textContent.trim() === draggedWord.textContent) {
+                            zone.textContent = '';
+                        }
+                    });
+                    draggedWord.style.visibility = 'visible';
+                }
+            });
+        }
+    }
+
+</script>
+<?php require_once('Views/Template/footer.phtml'); ?>
+</body>
+</html>

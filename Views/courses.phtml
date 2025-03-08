@@ -1,0 +1,257 @@
+<?php
+require_once('Template/header.phtml');
+?>
+
+    <div class="container py-5">
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-8 text-center">
+                <h1 class="display-4 fw-bold text-primary">Computer Science Study Path</h1>
+                <p class="lead">Select a topic below to start exploring</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="card h-100 shadow-sm subject-card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="my-0 d-flex align-items-center">
+                            <i class="bi bi-laptop me-2"></i>
+                            Computer Science
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text fw-bold">Select a topic to start studying:</p>
+                        <div class="topic-list collapse show">
+                            <ul class="list-group">
+                                <?php
+                                // Define Computer Science topics (removing Operating Systems and Cybersecurity)
+                                $topics = [
+                                    'Networking', 'Data Structures', 'Algorithms',
+                                    'Database Management', 'Web Development', 'Artificial Intelligence'
+                                ];
+
+                                // Output each topic with revise and test options
+                                foreach ($topics as $topic) {
+                                    ?>
+                                    <li class="list-group-item topic-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i class="bi bi-arrow-right-circle me-2 topic-icon"></i>
+                                                <?= htmlspecialchars($topic) ?>
+                                            </span>
+                                            <div class="btn-group">
+                                                <a href="revise.php?subject=Computer Science&topic=<?= urlencode($topic) ?>"
+                                                   class="btn btn-sm btn-outline-primary revise-btn">
+                                                    <i class="bi bi-book me-1"></i> Revise
+                                                </a>
+                                                <a href="test.php?subject=Computer Science&topic=<?= urlencode($topic) ?>"
+                                                   class="btn btn-sm btn-outline-success test-btn">
+                                                    <i class="bi bi-check-circle me-1"></i> Test
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </li>
+                                <?php } ?>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-8 mx-auto text-center">
+                <div class="study-stats p-4 bg-light rounded shadow-sm">
+                    <h3 class="h5 mb-3">Your Study Progress</h3>
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted">
+                        <small>Topics completed: <span id="topics-completed">0</span></small>
+                        <small>Last studied: <span id="last-studied">Never</span></small>
+                        <small>Study streak: <span id="study-streak">0 days</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Topic interaction effects
+            const topicItems = document.querySelectorAll('.topic-item');
+            topicItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.classList.add('bg-light');
+                    this.querySelector('.topic-icon').classList.add('text-primary');
+                });
+
+                item.addEventListener('mouseleave', function() {
+                    this.classList.remove('bg-light');
+                    this.querySelector('.topic-icon').classList.remove('text-primary');
+                });
+            });
+
+            // Button hover effects
+            const reviseButtons = document.querySelectorAll('.revise-btn');
+            reviseButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    // Update progress for revise
+                    updateProgress('revise');
+                });
+            });
+
+            const testButtons = document.querySelectorAll('.test-btn');
+            testButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    // Update progress for test
+                    updateProgress('test');
+                });
+            });
+
+            // Toggle topics visibility
+            const toggleButtons = document.querySelectorAll('.toggle-topics');
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const card = this.closest('.card');
+                    const topicList = card.querySelector('.topic-list');
+                    const collapseText = this.querySelector('.collapse-text');
+                    const expandText = this.querySelector('.expand-text');
+
+                    topicList.classList.toggle('show');
+                    collapseText.classList.toggle('d-none');
+                    expandText.classList.toggle('d-none');
+
+                    if (!topicList.classList.contains('show')) {
+                        card.style.height = 'auto';
+                    }
+                });
+            });
+
+            // Card hover effects
+            const subjectCard = document.querySelector('.subject-card');
+            subjectCard.addEventListener('mouseenter', function() {
+                this.classList.add('shadow');
+                this.style.transform = 'translateY(-5px)';
+                this.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease';
+            });
+
+            subjectCard.addEventListener('mouseleave', function() {
+                this.classList.remove('shadow');
+                this.style.transform = 'translateY(0)';
+            });
+
+            // Demo functionality to show progress update
+            function updateProgress(activityType) {
+                // This is just for demo purposes - in a real app you'd use AJAX and localStorage
+                const progressBar = document.querySelector('.progress-bar');
+                const topicsCompleted = document.getElementById('topics-completed');
+                const lastStudied = document.getElementById('last-studied');
+                const studyStreak = document.getElementById('study-streak');
+
+                // Get current progress
+                let currentProgress = parseInt(progressBar.style.width) || 0;
+                let completed = parseInt(topicsCompleted.textContent) || 0;
+
+                // Update progress (simulate progress)
+                completed++;
+                // With 6 topics, each is worth 16.67% (approx)
+                currentProgress = Math.min(Math.floor(completed * 16.67), 100);
+
+                // Animate progress bar
+                progressBar.style.width = currentProgress + '%';
+                progressBar.textContent = currentProgress + '%';
+                progressBar.setAttribute('aria-valuenow', currentProgress);
+
+                // Update stats
+                topicsCompleted.textContent = completed;
+                lastStudied.textContent = 'Today';
+
+                // Update streak
+                let streak = parseInt(studyStreak.textContent) || 0;
+                studyStreak.textContent = (streak + 1) + ' days';
+
+                // Save to localStorage in a real application
+                // Different bonuses could be applied based on activityType (revise vs test)
+            }
+
+            // Initialize with sample data (in a real app, load from localStorage or database)
+            function initializeStats() {
+                // Check if we have saved data in localStorage
+                const hasStudied = localStorage.getItem('hasStudied');
+
+                if (!hasStudied) {
+                    // First-time welcome message
+                    const welcomeMsg = document.createElement('div');
+                    welcomeMsg.className = 'alert alert-info alert-dismissible fade show mt-4';
+                    welcomeMsg.innerHTML = `
+                <strong>Welcome to your Computer Science study portal!</strong>
+                Select any topic to begin your learning journey.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+                    document.querySelector('.container').prepend(welcomeMsg);
+
+                    // Initialize localStorage
+                    localStorage.setItem('hasStudied', 'false');
+                }
+            }
+
+            initializeStats();
+        });
+    </script>
+
+    <style>
+        /* Custom styles for enhanced UI */
+        .subject-card {
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+
+        .topic-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .topic-item:hover .topic-icon {
+            transform: translateX(3px);
+        }
+
+        /* Button styles */
+        .btn-group .btn {
+            transition: all 0.2s ease;
+        }
+
+        .btn-group .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .revise-btn:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .test-btn:hover {
+            background-color: #28a745;
+            color: white;
+        }
+
+        /* Progress bar enhancements */
+        .study-stats {
+            transition: all 0.3s ease;
+        }
+
+        .study-stats:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        }
+
+        .progress {
+            border-radius: 1rem;
+            background-color: #e9ecef;
+            overflow: hidden;
+        }
+    </style>
+
+<?php
+require_once('Template/footer.phtml');
+?>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta Information -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RevisionPro - Your Study Companion</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+<!-- Include Header Template -->
+<?php require_once('Views/Template/header.phtml'); ?>
+
+<!-- Main Content Container with extra top margin -->
+<main class="container mx-auto px-4 py-8 mt-16">
+
+    <!-- Hero Section -->
+    <section class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+            Supercharge Your Learning
+        </h1>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+            Smart revision tools and personalized study strategies to help you excel in your academic journey.
+        </p>
+    </section>
+
+    <!-- Features Section -->
+    <section class="grid md:grid-cols-3 gap-6">
+
+        <!-- Feature 1: Comprehensive Resources -->
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <!-- Icon for Resources -->
+            <div class="mb-4 flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Comprehensive Resources</h3>
+            <p class="text-gray-600">
+                Access a wide range of study materials across multiple subjects.
+            </p>
+        </div>
+
+        <!-- Feature 2: Smart Tracking -->
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <!-- Icon for Smart Tracking -->
+            <div class="mb-4 flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Smart Tracking</h3>
+            <p class="text-gray-600">
+                Monitor your progress and identify areas for improvement.
+            </p>
+        </div>
+
+        <!-- Feature 3: Time Management -->
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <!-- Icon for Time Management -->
+            <div class="mb-4 flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Time Management</h3>
+            <p class="text-gray-600">
+                Optimize your study schedule with intelligent planning tools.
+            </p>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="text-center mt-12">
+        <a href="/courses.php"
+           class="bg-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:bg-blue-700 transition duration-300">
+            Get Started Now
+        </a>
+    </section>
+
+</main>
+
+<!-- Include Footer Template -->
+<?php require_once('Views/Template/footer.phtml'); ?>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<?php
+// Start the session to manage authentication state
+session_start();
+
+// Include the required classes for database access and user operations
+require_once('Models/Database.php');
+require_once('Models/User.php');
+require_once('Models/UserDataSet.php');
+
+// Instantiate the UserDataSet to interact with the User table in the database
+$userDataSet = new UserDataSet();
+
+// Initialize error message variables for login and signup
+$loginError = "";
+$signupError = "";
+
+// Process form submissions when a POST request is made
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // Determine if this is a signup form submission by checking for 'confirm-password'
+    if (isset($_POST['confirm-password'])) {
+        // ---------------
+        // Process Signup
+        // ---------------
+
+        // Sanitize and retrieve form data
+        $email = trim($_POST['email']);
+        $password = trim($_POST['password']);
+        $confirmPassword = trim($_POST['confirm-password']);
+
+        // Check that the password and confirmation password match
+        if ($password !== $confirmPassword) {
+            $signupError = "Passwords do not match.";
+        } else {
+            // Check if an account already exists with the given email
+            $existingUser = $userDataSet->getUserByEmail($email);
+            if ($existingUser) {
+                $signupError = "An account with this email already exists.";
+            } else {
+                // Encrypt the password securely using password_hash()
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+                // Create a new user record in the database
+                $newUserId = $userDataSet->createUser($email, $hashedPassword);
+
+                // If user creation is successful, start a session and redirect to the dashboard
+                if ($newUserId) {
+                    $_SESSION['user_id'] = $newUserId;
+                    header("Location: dashboard.php");
+                    exit;
+                } else {
+                    $signupError = "Failed to create account. Please try again.";
+                }
+            }
+        }
+    } else {
+        // ---------------
+        // Process Login
+        // ---------------
+
+        // Sanitize and retrieve the login form data
+        $email = trim($_POST['email']);
+        $password = trim($_POST['password']);
+
+        // Retrieve the user record from the database using the provided email
+        $user = $userDataSet->getUserByEmail($email);
+
+        // Check whether a user with that email exists
+        if ($user) {
+            // Verify the entered password with the stored hashed password
+            if (password_verify($password, $user->getPassword())) {
+                // If the password is correct, set the session and redirect to the dashboard
+                $_SESSION['user_id'] = $user->getID();
+                header("Location: dashboard.php");
+                exit;
+            } else {
+                $loginError = "Incorrect password.";
+            }
+        } else {
+            $loginError = "No account found with that email.";
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta tags for proper rendering and touch zooming -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - Professional System</title>
+    <!-- Include Font Awesome for icon fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="auth-wrapper">
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-unlock-alt"></i>
+                </div>
+                <!-- Dynamic form title toggled via JavaScript -->
+                <h2 id="form-title">Welcome Back</h2>
+                <p id="form-subtitle">Sign in to continue to your account</p>
+            </div>
+
+            <div class="form-container">
+                <!-- Display any login errors here -->
+                <?php if (!empty($loginError)) : ?>
+                    <div class="error" style="text-align:center; margin-bottom: 15px;">
+                        <?php echo htmlspecialchars($loginError); ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Login Form -->
+                <form id="login-form" class="active-form" method="POST" action="">
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                            <input type="email" id="login-email" name="email" required placeholder="Email Address">
+                        </div>
+                        <span class="error" id="login-email-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="login-password" name="password" required placeholder="Password">
+                            <span class="password-toggle">
+                                <i class="fas fa-eye-slash" id="toggle-password"></i>
+                            </span>
+                        </div>
+                        <span class="error" id="login-password-error"></span>
+                    </div>
+                    <div class="form-extras">
+                        <label class="remember-me">
+                            <input type="checkbox" name="remember"> Remember me
+                        </label>
+                        <a href="#" class="forgot-password">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submit-button">Sign In</button>
+                </form>
+
+                <!-- Display any signup errors here -->
+                <?php if (!empty($signupError)) : ?>
+                    <div class="error" style="text-align:center; margin-bottom: 15px;">
+                        <?php echo htmlspecialchars($signupError); ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Signup Form -->
+                <form id="signup-form" class="hidden-form" method="POST" action="">
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                            <input type="email" id="signup-email" name="email" required placeholder="Email Address">
+                        </div>
+                        <span class="error" id="signup-email-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="signup-password" name="password" required placeholder="Create Password">
+                            <span class="password-toggle">
+                                <i class="fas fa-eye-slash" id="toggle-signup-password"></i>
+                            </span>
+                        </div>
+                        <span class="error" id="signup-password-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="signup-confirm-password" name="confirm-password" required placeholder="Confirm Password">
+                        </div>
+                        <span class="error" id="signup-confirm-password-error"></span>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submit-button">Sign Up</button>
+                </form>
+            </div>
+
+            <div class="form-switch">
+                <p id="switch-text">
+                    Don't have an account?
+                    <a href="#" id="switch-form">Sign Up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inline CSS for styling the authentication forms -->
+<style>
+    :root {
+        --primary-color: #4a6cf7;
+        --secondary-color: #6a11cb;
+        --background-color: #f4f7fa;
+        --text-color: #333;
+        --error-color: #ff4d4d;
+        --input-border: #e0e6ed;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        line-height: 1.6;
+        background-color: var(--background-color);
+        color: var(--text-color);
+    }
+    .auth-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    }
+    .auth-container { width: 100%; max-width: 500px; }
+    .auth-box {
+        background-color: white;
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(50,50,93,0.1), 0 5px 15px rgba(0,0,0,0.07);
+        padding: 40px;
+        position: relative;
+        overflow: hidden;
+    }
+    .auth-header { text-align: center; margin-bottom: 30px; }
+    .logo {
+        width: 80px; height: 80px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 20px;
+        font-size: 36px;
+    }
+    .auth-header h2 { color: var(--primary-color); margin-bottom: 10px; font-weight: 600; }
+    .auth-header p { color: #777; }
+    .form-group { margin-bottom: 20px; }
+    .input-group { position: relative; }
+    .input-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+        z-index: 2;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 15px 15px 15px 45px;
+        border: 1px solid var(--input-border);
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(74,108,247,0.1);
+    }
+    .password-toggle {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #777;
+    }
+    .form-extras {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .remember-me { display: flex; align-items: center; font-size: 14px; }
+    .remember-me input { margin-right: 8px; }
+    .forgot-password {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 14px;
+    }
+    .btn-primary {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .form-switch { text-align: center; margin-top: 20px; }
+    .form-switch a {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .error {
+        color: var(--error-color);
+        font-size: 14px;
+        margin-top: 5px;
+        display: block;
+    }
+    .hidden-form { display: none; }
+    .active-form { display: block; }
+</style>
+
+<!-- Inline JavaScript to toggle between Login and Signup forms -->
+<script>
+    /**
+     * Toggle between the login and signup forms.
+     */
+    function toggleForms() {
+        // Retrieve DOM elements for both forms and form labels
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const formTitle = document.getElementById('form-title');
+        const formSubtitle = document.getElementById('form-subtitle');
+        const submitButton = document.getElementById('submit-button');
+        const switchText = document.getElementById('switch-text');
+
+        // If the login form is currently visible, switch to signup
+        if (loginForm.classList.contains('active-form')) {
+            loginForm.classList.remove('active-form');
+            loginForm.classList.add('hidden-form');
+            signupForm.classList.remove('hidden-form');
+            signupForm.classList.add('active-form');
+            formTitle.textContent = 'Create Account';
+            formSubtitle.textContent = 'Sign up to get started';
+            submitButton.textContent = 'Sign Up';
+            switchText.innerHTML = 'Already have an account? <a href="#" id="switch-form">Log in</a>';
+        } else {
+            // Otherwise, switch to login
+            signupForm.classList.remove('active-form');
+            signupForm.classList.add('hidden-form');
+            loginForm.classList.remove('hidden-form');
+            loginForm.classList.add('active-form');
+            formTitle.textContent = 'Welcome Back';
+            formSubtitle.textContent = 'Sign in to continue to your account';
+            submitButton.textContent = 'Sign In';
+            switchText.innerHTML = 'Don\'t have an account? <a href="#" id="switch-form">Sign Up</a>';
+        }
+        // Reattach the click event to the new link element
+        document.getElementById('switch-form').addEventListener('click', function(event) {
+            event.preventDefault();
+            toggleForms();
+        });
+    }
+
+    // Attach the event listener to the initial switch link
+    document.getElementById('switch-form').addEventListener('click', function(event) {
+        event.preventDefault();
+        toggleForms();
+    });
+</script>
+</body>
+</html>

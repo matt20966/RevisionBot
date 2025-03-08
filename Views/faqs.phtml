@@ -1,0 +1,98 @@
+<?php require_once('Views/Template/header.phtml'); ?>
+<script src="https://cdn.tailwindcss.com"></script>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-12">Frequently Asked Questions</h1>
+
+        <div class="space-y-6">
+            <!-- FAQ Item 1 -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleAnswer(this)">
+                    <h3 class="text-xl font-semibold text-gray-800">How does RevisionPro help me study?</h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div class="answer hidden mt-4 text-gray-600">
+                    RevisionPro provides personalized study strategies, comprehensive resources, and progress tracking to help you optimize your learning experience and improve academic performance.
+                </div>
+            </div>
+
+            <!-- FAQ Item 2 -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleAnswer(this)">
+                    <h3 class="text-xl font-semibold text-gray-800">Is my data secure?</h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div class="answer hidden mt-4 text-gray-600">
+                    We take data privacy seriously. All user information is encrypted and stored securely. We follow strict data protection guidelines to ensure your personal and academic information remains confidential.
+                </div>
+            </div>
+
+            <!-- FAQ Item 3 -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleAnswer(this)">
+                    <h3 class="text-xl font-semibold text-gray-800">What subjects are covered?</h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div class="answer hidden mt-4 text-gray-600">
+                    RevisionPro covers a wide range of subjects including Mathematics, Science, Literature, History, Languages, and more. Our resources are continuously updated to support diverse academic needs.
+                </div>
+            </div>
+
+            <!-- FAQ Item 4 -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleAnswer(this)">
+                    <h3 class="text-xl font-semibold text-gray-800">How much does it cost?</h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div class="answer hidden mt-4 text-gray-600">
+                    We offer flexible pricing plans. Basic features are free, with premium features available through affordable monthly or annual subscriptions. Check our pricing page for the most current rates.
+                </div>
+            </div>
+
+            <!-- FAQ Item 5 -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleAnswer(this)">
+                    <h3 class="text-xl font-semibold text-gray-800">Can I access resources on mobile?</h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div class="answer hidden mt-4 text-gray-600">
+                    Yes! RevisionPro is fully responsive and works seamlessly across desktop, tablet, and mobile devices. Download our mobile app for an optimized learning experience on the go.
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Section -->
+        <div class="mt-12 text-center">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Still Have Questions?</h2>
+            <p class="text-gray-600 mb-6">We're here to help! Reach out to our support team.</p>
+            <a href="#" class="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-300">
+                Contact Support
+            </a>
+        </div>
+    </div>
+</div>
+
+<?php require_once('Views/Template/footer.phtml'); ?>
+
+<script>
+    function toggleAnswer(element) {
+        const answerDiv = element.nextElementSibling;
+        const icon = element.querySelector('svg');
+
+        answerDiv.classList.toggle('hidden');
+        icon.classList.toggle('rotate-180');
+    }
+</script>
+</body>
+<?php require_once('Views/Template/footer.phtml'); ?>

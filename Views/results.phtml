@@ -1,0 +1,203 @@
+<?php require_once('Views/Template/header.phtml') ?>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-gradient-primary text-white py-4">
+                    <h3 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>Test Results
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <div id="answers-container">
+                        <!-- Overall performance, question selector, and question cards will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <!-- Action Buttons -->
+            <div class="text-center mt-4">
+                <a href="home.php" class="btn btn-primary btn-lg me-3 shadow">
+                    <i class="bi bi-house-door me-2"></i>Return Home
+                </a>
+                <a href="test.php" class="btn btn-success btn-lg shadow">
+                    <i class="bi bi-arrow-repeat me-2"></i>Try Again
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background-color: #f4f6f9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    /* Card Header Gradient */
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #4e73df, #224abe);
+    }
+    /* Overall Card */
+    .card {
+        border-radius: 15px;
+    }
+    /* Question Card Styling */
+    .question-card {
+        width: 70%;  /* 30% smaller than full container width */
+        margin: 2rem auto;  /* Center the question card and add vertical spacing */
+        border-left: 4px solid #4e73df;
+        padding: 1.5rem;
+        background-color: #ffffff;
+        border-radius: 10px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .question-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    /* Section Styling */
+    .answer-section, .feedback-section {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    .answer-section {
+        background-color: #f8f9fa;
+    }
+    .feedback-section {
+        background-color: #e7f1ff;
+    }
+    /* Badge Styles */
+    .badge {
+        font-size: 0.9rem;
+        padding: 0.5em 0.75em;
+    }
+    /* Custom Alert for Overall Performance */
+    .overall-performance {
+        border-radius: 10px;
+        padding: 1.5rem;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('answers-container');
+
+        // Check if quizResults is available
+        if (typeof quizResults === 'undefined' || !quizResults) {
+            container.innerHTML = '<div class="alert alert-warning">No results found. Please complete the test first.</div>';
+            return;
+        }
+
+        let totalScore = 0;
+        let attemptedCount = 0;
+        let questionCount = 0;
+        const questionCards = [];  // To store each question's HTML
+
+        // Process and prepare each question result
+        Object.entries(quizResults).forEach(([questionId, result]) => {
+            questionCount++;
+            // Use the stored user answer and question text.
+            // If marking_result exists, use the question text from it; otherwise fallback to the stored question.
+            const userAnswer = result.userAnswer;
+            const questionText = result.marking_result ? result.marking_result.data.question.text : result.question;
+
+            // If marking_result exists, use its model answer; otherwise, use the stored correct answer.
+            const modelAnswer = result.marking_result ? result.marking_result.data.answers.model.text : result.answer;
+
+            let similarityScore = 0;
+            let feedback = "";
+            if (result.marking_result) {
+                similarityScore = result.score;  // already stored score
+                feedback = result.feedback;        // already stored feedback
+                totalScore += similarityScore;
+                attemptedCount++;
+            }
+
+            // Determine the badge class if the question was marked
+            const scoreClass = result.marking_result ?
+                (similarityScore >= 80 ? 'bg-success' :
+                    similarityScore >= 60 ? 'bg-primary' :
+                        similarityScore >= 40 ? 'bg-warning' : 'bg-danger') :
+                'bg-secondary';
+
+            let questionHtml = `
+            <div class="question-card question-box">
+                <h5 class="mb-3">Question ${parseInt(questionId) + 1}</h5>
+                <p class="mb-4">${questionText}</p>
+                <div class="answer-section">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Your Answer</strong>`;
+            if (result.marking_result) {
+                questionHtml += `<span class="badge ${scoreClass}">Match Score: ${similarityScore}%</span>`;
+            }
+            questionHtml += `</div>
+                    <p class="mb-0">${userAnswer ? userAnswer : '<em>No answer provided</em>'}</p>
+                </div>
+                <div class="feedback-section">
+                    <h6 class="text-primary mb-2">Model Answer</h6>
+                    <p>${modelAnswer}</p>`;
+            if (result.marking_result) {
+                questionHtml += `
+                    <h6 class="text-primary mt-3 mb-2">Feedback</h6>
+                    <p>${feedback}</p>`;
+            } else {
+                questionHtml += `
+                    <p>${result.message ? result.message : 'No feedback available'}</p>`;
+            }
+            questionHtml += `</div>
+            </div>`;
+            questionCards.push(questionHtml);
+        });
+
+        // Calculate overall performance summary (only for attempted questions)
+        const averageScore = attemptedCount > 0 ? Math.round(totalScore / attemptedCount) : 0;
+        const summaryHtml = `
+        <div class="alert alert-primary overall-performance mb-4">
+            <h4 class="alert-heading">Overall Performance</h4>
+            <p class="mb-1">Average Score: <strong>${averageScore}%</strong></p>
+            <p class="mb-0">Questions Attempted: <strong>${attemptedCount}</strong></p>
+        </div>
+        `;
+
+        // Build the question selector dropdown HTML
+        const dropdownHtml = `
+        <div class="mb-3">
+            <label for="question-selector" class="form-label"><strong>Select Question</strong></label>
+            <select id="question-selector" class="form-select">
+                ${[...Array(questionCount)].map((_, i) => `<option value="${i}">Question ${i+1}</option>`).join('')}
+            </select>
+        </div>
+        `;
+
+        // Clear the container and add overall summary and dropdown at the top
+        container.innerHTML = summaryHtml + dropdownHtml;
+
+        // Create a wrapper for question cards
+        const questionsWrapper = document.createElement('div');
+        questionsWrapper.id = 'questions-wrapper';
+        container.appendChild(questionsWrapper);
+
+        // Insert all question cards into the wrapper
+        questionCards.forEach((qHtml, index) => {
+            const questionElement = document.createElement('div');
+            questionElement.innerHTML = qHtml;
+            // Hide all question cards initially; only the first will be shown
+            questionElement.style.display = index === 0 ? 'block' : 'none';
+            questionsWrapper.appendChild(questionElement);
+        });
+
+        // Use only the direct children of the wrapper as the question cards.
+        const questionBoxes = questionsWrapper.children;
+
+        // Update the displayed question when the dropdown selection changes
+        const selector = document.getElementById('question-selector');
+        selector.addEventListener('change', function() {
+            const selectedIndex = parseInt(this.value, 10);
+            Array.from(questionBoxes).forEach((box, index) => {
+                box.style.display = index === selectedIndex ? 'block' : 'none';
+            });
+        });
+    });
+</script>
+
+<?php require_once('Views/Template/footer.phtml'); ?>

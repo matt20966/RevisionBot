@@ -1,0 +1,134 @@
+<?php
+require_once("Template/header.phtml");
+
+// Initialize variables
+$message = "";
+$theCount = null;
+$fileName = "";
+
+// Process the form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["pdfFile"])) {
+    // Check if file was uploaded without errors
+    if ($_FILES["pdfFile"]["error"] == 0) {
+        $fileType = $_FILES["pdfFile"]["type"];
+        $fileSize = $_FILES["pdfFile"]["size"];
+        $fileName = $_FILES["pdfFile"]["name"];
+        $tmpName = $_FILES["pdfFile"]["tmp_name"];
+
+        // Validate file type (PDF only)
+        if ($fileType == "application/pdf") {
+            // Validate file size (limit to 10MB)
+            if ($fileSize <= 10 * 1024 * 1024) {
+                // Create uploads directory if it doesn't exist
+                $uploadDir = "uploads/";
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $uploadPath = $uploadDir . basename($fileName);
+
+                // Move the file to uploads directory
+                if (move_uploaded_file($tmpName, $uploadPath)) {
+                    // Process the PDF file
+                    try {
+                        // Check if pdftotext is installed (part of poppler-utils)
+                        exec("which pdftotext", $output, $returnVar);
+
+                        if ($returnVar === 0) {
+                            // Convert PDF to text using pdftotext
+                            $textFile = $uploadDir . "temp_" . time() . ".txt";
+                            exec("pdftotext {$uploadPath} {$textFile}");
+
+                            // Read the text file
+                            $content = file_get_contents($textFile);
+
+                            // Count occurrences of "the" (case insensitive)
+                            $theCount = preg_match_all('/\bthe\b/i', $content);
+
+                            // Clean up temporary file
+                            unlink($textFile);
+
+                            $message = "<div class='alert alert-success'>File uploaded and processed successfully.</div>";
+                        } else {
+                            // If pdftotext is not available, try using PHP library
+                            if (class_exists('Smalot\PdfParser\Parser')) {
+                                // Use PDF Parser library
+                                $parser = new \Smalot\PdfParser\Parser();
+                                $pdf = $parser->parseFile($uploadPath);
+                                $content = $pdf->getText();
+
+                                // Count occurrences of "the" (case insensitive)
+                                $theCount = preg_match_all('/\bthe\b/i', $content);
+
+                                $message = "<div class='alert alert-success'>File uploaded and processed successfully.</div>";
+                            } else {
+                                $message = "<div class='alert alert-warning'>PDF processing tools not available. Please install pdftotext or PDF Parser library.</div>";
+                            }
+                        }
+                    } catch (Exception $e) {
+                        $message = "<div class='alert alert-danger'>Error processing PDF: " . $e->getMessage() . "</div>";
+                    }
+                } else {
+                    $message = "<div class='alert alert-danger'>Error uploading file.</div>";
+                }
+            } else {
+                $message = "<div class='alert alert-danger'>File size exceeds the limit of 10MB.</div>";
+            }
+        } else {
+            $message = "<div class='alert alert-danger'>Only PDF files are allowed.</div>";
+        }
+    } else {
+        $message = "<div class='alert alert-danger'>Error code: " . $_FILES["pdfFile"]["error"] . "</div>";
+    }
+}
+?>
+
+    <div class="container mt-5 mb-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">PDF Word Counter</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Upload a PDF file to count how many times the word "the" appears.</p>
+
+                        <?php if (!empty($message)): ?>
+                            <?php echo $message; ?>
+                        <?php endif; ?>
+
+                        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" enctype="multipart/form-data" class="mb-4">
+                            <div class="custom-file mb-3">
+                                <input type="file" class="custom-file-input" id="pdfFile" name="pdfFile" accept=".pdf" required>
+                                <label class="custom-file-label" for="pdfFile">Choose PDF file</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Upload & Process</button>
+                        </form>
+
+                        <?php if ($theCount !== null): ?>
+                            <div class="result-container text-center p-4 bg-light rounded">
+                                <h4>Results for: <?php echo htmlspecialchars($fileName); ?></h4>
+                                <div class="counter-display my-4">
+                                    <span class="display-4"><?php echo $theCount; ?></span>
+                                    <p class="lead">occurrences of the word "the"</p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Display the selected filename in the custom file input
+        document.querySelector('.custom-file-input').addEventListener('change', function(e) {
+            var fileName = e.target.files[0].name;
+            var nextSibling = e.target.nextElementSibling;
+            nextSibling.innerText = fileName;
+        });
+    </script>
+
+<?php
+require_once("Template/footer.phtml");
+?>
