@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #item {
+            font-size: 20px;
+            margin: 20px;
+        }
+        #next-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #reset-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Item Viewer</h1>
+<div id="item">Click Next to load an item</div>
+<button id="next-btn">Next</button>
+<button id="reset-btn">Reset Session</button>
+
+<script>
+    let currentItem = 0;
+
+    // Load the next item when the "Next" button is clicked
+    document.getElementById('next-btn').addEventListener('click', function() {
+        fetch('server.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('item').textContent = 'No more items available';
+                } else {
+                    // Make sure to use the correct property (e.g., `question`) from the returned data
+                    document.getElementById('item').textContent = 'Item: ' + data.question;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('item').textContent = 'An error occurred';
+            });
+    });
+
+    // Reset the session when the "Reset Session" button is clicked
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        fetch('reset_session.php')
+            .then(response => response.json())
+            .then(data => {
+                alert('Session has been reset!');
+                document.getElementById('item').textContent = 'Click Next to load an item';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+</script>
+</body>
+</html>
+
